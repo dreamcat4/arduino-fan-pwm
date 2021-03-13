@@ -4,6 +4,12 @@ Combines other Arduino sketches, plus extra work. Towards a better fan pwm contr
 
 <!-- MarkdownTOC -->
 
+* [Credits](#credits)
+  * [Youtube - Learning PID Control](#youtube---learning-pid-control)
+  * [Youtube - Matlab / Brian Douglas](#youtube---matlab--brian-douglas)
+  * [Youtube - New](#youtube---new)
+  * [Arduino Sketch - Initial Code](#arduino-sketch---initial-code)
+  * [High frequency pwm on ATMega 328p, by maipulating timer registers](#high-frequency-pwm-on-atmega-328p-by-maipulating-timer-registers)
 * [pid parameters](#pid-parameters)
   * [p = proportional](#p--proportional)
   * [i = integral = final little 'push' to nudge the temperature onto target](#i--integral--final-little-push-to-nudge-the-temperature-onto-target)
@@ -17,6 +23,58 @@ Combines other Arduino sketches, plus extra work. Towards a better fan pwm contr
 
 <!-- /MarkdownTOC -->
 
+<a id="credits"></a>
+## Credits
+
+This is a combined effort, after watching many educational videos explaining PID control algorithm. An also after gathering multiple arduino sketches / examples from around the web. And merging everything together.
+
+<a id="youtube---learning-pid-control"></a>
+### Youtube - Learning PID Control
+
+* [How to Tune a PID Controller](https://www.youtube.com/watch?v=IB1Ir4oCP5k)
+* [PID Math Demystified](https://www.youtube.com/watch?v=JEpWlTl95Tw)
+* [PIDs Simplified](https://www.youtube.com/watch?v=6OH-wOsVVjg)
+* [PID temperature controller DIY Arduino](https://www.youtube.com/watch?v=LXhTFBGgskI)
+* [What are PID Tuning Parameters](https://www.youtube.com/watch?v=1ImhKwpSmuc)
+* [What PIDs do and how they do it](https://www.youtube.com/watch?v=0vqWyramGy8)
+
+<a id="youtube---matlab--brian-douglas"></a>
+### Youtube - Matlab / Brian Douglas
+
+* [Understanding PID Control, Part 1 What Is PID Control](https://www.youtube.com/watch?v=wkfEZmsQqiA&t=25s)
+* [Understanding PID Control, Part 2 Expanding Beyond a Simple Integral](https://www.youtube.com/watch?v=NVLXCwc8HzM)
+* [Understanding PID Control, Part 3 Expanding Beyond a Simple Derivative](https://www.youtube.com/watch?v=7dUVdrs1e18&t=23s)
+* [Understanding PID Control, Part 4 A PID Tuning Guide](https://www.youtube.com/watch?v=sFOEsA0Irjs)
+* [Understanding PID Control, Part 5 Three Ways to Build a Model](https://www.youtube.com/watch?v=qhIjIu-Zk10)
+* [Understanding PID Control, Part 6 Manual and Automatic Tuning Methods](https://www.youtube.com/watch?v=qj8vTO1eIHo)
+* [Understanding PID Control, Part 7 Important PID Concepts](https://www.youtube.com/watch?v=tbgV6caAVcs)
+
+<a id="youtube---new"></a>
+### Youtube - New
+
+* [PID demo](https://www.youtube.com/watch?v=qKy98Cbcltw)
+* [PID Control Basics in 10 Minutes](https://www.youtube.com/watch?v=srLMG0jlRMk)
+* [PID Tuning Masterclass - Part 1 - P Term From Low To High](https:/-/www.youtube.com/watch?v=27lMKi2inpk)
+* [EEVacademy #6 - PID Controllers Explained](https://www.youtube.com/watch?v=VVOi2dbtxC0)
+* [PID control on arduino](https://www.youtube.com/watch?v=crw0Hcc67RY)
+* [9-Axis IMU LESSON 26: Understanding PID Control systems with Arduino](https://www.youtube.com/watch?v=t7ImNDOQIzM)
+
+
+<a id="arduino-sketch---initial-code"></a>
+### Arduino Sketch - Initial Code
+
+* Name: Chris Barnes
+* Url: https://barnesian.com/arduino-powered-smart-fan-controller/
+* License Terms: No idea, looks Public Domain license maybe. But Copyright © 2011-2017 Chris Barnes
+* Comment: Lol. Can run a diff to see which lines of the original code remains
+
+<a id="high-frequency-pwm-on-atmega-328p-by-maipulating-timer-registers"></a>
+### High frequency pwm on ATMega 328p, by maipulating timer registers
+
+* Name: Nick Gammon
+* Url: http://www.gammon.com.au/forum/?id=11504
+* License: copyleft 2005 DojoDave <http://www.0j0.org>
+* Comment: Difficult to understand / follow but... Awesome stuff! Thanks so much & absolutely essential
 
 <a id="pid-parameters"></a>
 ## pid parameters

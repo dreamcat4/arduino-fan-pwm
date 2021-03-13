@@ -4,9 +4,6 @@
 //void clicked();
 //// end: convert .ino to .cpp
 
-// Source: "Arduino Powered Smart Fan Controller" - Barnesian
-//for wiring, see: https://barnesian.com/arduino-powered-smart-fan-controller/
-
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include "PID_v1.h"
@@ -23,35 +20,16 @@
 volatile unsigned int encoder0Pos = 0;  //Encoder value for ISR
 
 
-/* Analog Read to LED
- * ------------------ 
- *
- * for wiring, see: https://www.arduino.cc/en/tutorial/potentiometer
- * 
- * Basically: (pin1) +5v --- WIPER --- (pin2) ANALOG_PIN_A2 --- WIPER --- (pin3) GND
- * 
- *
- * turns on and off a light emitting diode(LED) connected to digital  
- * pin 13. The amount of time the LED will be on and off depends on
- * the value obtained by analogRead(). In the easiest case we connect
- * a potentiometer to analog pin 2.
- *
- * Created 1 December 2005
- * copyleft 2005 DojoDave <http://www.0j0.org>
- * http://arduino.berlios.de
- *
- */
-
+// Analog Read to LED
+// for wiring, see: https://www.arduino.cc/en/tutorial/potentiometer
+// Basically: (pin1) +5v --- WIPER --- (pin2) ANALOG_PIN_A2 --- WIPER --- (pin3) GND
 int potPin = 2;    // select the input pin for the potentiometer
 int pot0_val = 0;       // variable to store the value coming from the sensor
 
 
 
+// PWM Modulating a 38 kHz frequency duty cycle
 // Source: http://www.gammon.com.au/forum/?id=11504
-// Example of modulating a 38 kHz frequency duty cycle by reading a potentiometer
-// Author: Nick Gammon
-// Date: 24 September 2012
-
 
 //pin_type  REG    pkg_pin Digital_Pin
 //========  ====   ======= ===========
@@ -163,115 +141,7 @@ void setup()
 //  double temp3Tgt = setPoint;
 
 /*
-pid parameters
-==================
-p = proportional
 
-p = proportional band = %pb = 100/pb * error
-  pb = 100/p
-
-Kp = gain = p = higher the faster the proportional response
- for example a gain of 18x means the output control variable (cv) will be 18*error
-
-wheras proportional band = pb or kp = 100/p
-then a lower value is higher gain... 1/18th as a % = 5.55%... so cv=100*error/pb
-====================================================
-
-i = integral = final little 'push' to nudge the temperature onto target
-
-integral notices if the error value remains uncorrected
-this occurs once the error gets close enough to the sepoint, 
-that the proportional value is no longer strong enough to give a sufficient
-positive enough value to overcome the inertia threshold for the last little bit
-for example the static friction in a movement system, or other signal inertia
-
-Ki = the integral constant = integral Gain
-however very often there is no seperate term for the Integral Gain,
-instead it's all rolled into the shared common gain 'K', when  Kp = Ki
-
-======================================================
-
-however there is usually the 'inegral remembering time period'
-
-integral reset = Tau_i
-
-i = reset, can be defined in:
-repeats per sec = hz
-seconds per repeat
-repeats per min
-minutes per repeat
-
-the integral = sum of area under curve
-Ki, or Ti. where Ki = 1/Ti
-
-what is Tau_i?
-================
-it's the term that we successively divide the Ki by
-for example:
-
-Ki/Tau_i * e
-we need a working example of this
-but basically the integral keeps forgetting the older terms each sample
-
-the integral is only remembered since the last time period
-it's like a sliding window
-for example an integral's reset period of '6rpm'
-means that it only remembers the last 10 seconds worth of error
-
-integral wind up
-===================
-occurs when the output motor is saturated
-and cannot spin faster than a given rpm
-
-this causes the error (e) to remain high, despite the output driving value being high
-so then the integral keeps adding up
-
-integral clamping
-===================
-
-to combat this issue, a special loop will impose limit on the integral value
-this occurs whenever the output value exceeds the threshold, then we will clamp
-once clamping is triggered, then the error term for the integral (Ei) will be set to 0
-so long as the sign +- of the error term is the same as the sign of the output
-which clears the integral value, and makes it 0, until clamping is released again
-which occurs if there is no longer saturation, or if there is overshoot and positional error sign changes
-
-integral clamping limit should be set lower than the maximum rpm of the output motor when saturated
-
-
-====================================================
-d = derivative = sensitive to noise spikes (high dt), which induce unwanted oscillations
-
-d = d/dt = dpv/dt
-the rate of change of the perceived value, over time
-so this is how fast the rate the system is currently changing it's temperature at
-this is governed by the responsiveness of the system
-
-
-
-sp = set point = target temp
-pv = process variable / perceived value = current temp
-cv = control variable = mv (manupulated variable) = output to heater
-e = error = (set point - perceived value) = distance to target
-
-
-high freq noise - low pass cutoff filter
-++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-d/dt derivative is laeger for hf noise spikes
-so we need to use a low pass filter on the derivative fumctiom
-
-tuning the filter freq is an important variable
-
-laplace domain tranfer function
-================================
-from 'undersstanding pid control part 3' video, at 10m45s
-
-to incorporate both the derivative + low pass filter
-we can instead create a negative feedback loop with the integral
-
-this is more computationally effecient transfer function
-combining the 2 blocks together.
 
 */
    
