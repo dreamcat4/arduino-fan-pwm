@@ -20,6 +20,11 @@ Combines other Arduino sketches, plus extra work. Towards a better fan pwm contr
     * [derivative - high freq noise](#derivative---high-freq-noise)
     * [derivative - low pass cutoff filter](#derivative---low-pass-cutoff-filter)
     * [derivative term - laplace domain tranfer function](#derivative-term---laplace-domain-tranfer-function)
+* [timers](#timers)
+  * [atmega328p \(uno\)](#atmega328p-uno)
+    * [timer0](#timer0)
+    * [timer1](#timer1)
+    * [timer2](#timer2)
 
 <!-- /MarkdownTOC -->
 
@@ -193,4 +198,30 @@ we can instead create a negative feedback loop with the integral
 
 this is more computationally effecient transfer function
 combining the 2 blocks together.
+
+<a id="timers"></a>
+## timers
+
+<a id="atmega328p-uno"></a>
+### atmega328p (uno)
+
+<a id="timer0"></a>
+#### timer0
+
+* used by `init()` function, called automatically by arduino IDE before `setup()`
+* counts 1 time per `millisecond`, for the `millis()` funtion
+
+<a id="timer1"></a>
+#### timer1
+
+<a id="timer2"></a>
+#### timer2
+
+* has a higher priority than timers 0 and 1
+
+
+
+
+
+
 
