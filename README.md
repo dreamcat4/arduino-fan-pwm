@@ -4,6 +4,9 @@ Combines other Arduino sketches, plus extra work. Towards a better fan pwm contr
 
 <!-- MarkdownTOC -->
 
+* [Setting up PlatformIO](#setting-up-platformio)
+  * [Sublime Text 3](#sublime-text-3)
+  * [VSCode](#vscode)
 * [Credits](#credits)
   * [Arduino Sketch - Initial Code](#arduino-sketch---initial-code)
   * [High frequency pwm on ATMega 328p, by maipulating timer registers](#high-frequency-pwm-on-atmega-328p-by-maipulating-timer-registers)
@@ -14,6 +17,38 @@ Combines other Arduino sketches, plus extra work. Towards a better fan pwm contr
     * [timer2](#timer2)
 
 <!-- /MarkdownTOC -->
+
+<a id="setting-up-platformio"></a>
+## Setting up PlatformIO
+
+<a id="sublime-text-3"></a>
+### Sublime Text 3
+
+In sublime text editor:
+
+* Type: `CTRL+SHIFT+P` to bring up command window
+* Type: `Package Control: Install Package`
+* Wait for Package Control directory listings to get loaded up
+* Type: `Deviot`, and hit `<RETURN>` key
+
+Then open a terminal window. For example if you have the `Terminus` package installed then `CTRL+SHIFT+P` then `Terminus: Toggle Panel`.
+
+In terminal, navigate into this project root folder `arduino-fan-pwm`, and then type:
+
+```sh
+pio project init --ide sublimetext --board uno
+```
+
+**Note:** You probably also need certain other tools to be installed manually. For example the Arduino IDE.
+
+<a id="vscode"></a>
+### VSCode
+
+There are already many tutorials out there, for how to install PlatformIO extension within VSCode IDE. And get things working.
+
+```sh
+pio project init --ide vscode --board uno
+```
 
 <a id="credits"></a>
 ## Credits

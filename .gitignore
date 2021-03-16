@@ -31,8 +31,11 @@
 *.out
 *.app
 
-# .pio files
+# pio files
 .pio
+# pio vscode files
 .vscode/c_cpp_properties.json
 .vscode/launch.json
-
+# pio sublime text 3 files
+platformio.sublime-project
+.ccls
