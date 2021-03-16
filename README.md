@@ -24,6 +24,13 @@ Combines other Arduino sketches, plus extra work. Towards a better fan pwm contr
 <a id="sublime-text-3"></a>
 ### Sublime Text 3
 
+**Note:** You may need certain other specific tools to be installed manually. For example the Arduino IDE.
+
+Follow these official instructions:
+
+* https://docs.platformio.org/en/latest/integration/ide/sublimetext.html
+
+
 In sublime text editor:
 
 * Type: `CTRL+SHIFT+P` to bring up command window
@@ -38,8 +45,6 @@ In terminal, navigate into this project root folder `arduino-fan-pwm`, and then 
 ```sh
 pio project init --ide sublimetext --board uno
 ```
-
-**Note:** You probably also need certain other tools to be installed manually. For example the Arduino IDE.
 
 <a id="vscode"></a>
 ### VSCode
