@@ -1,5 +1,5 @@
 //// begin: convert .ino to .cpp
-//#include <Arduino.h>
+#include <Arduino.h>
 //void doEncoder();
 //void clicked();
 //// end: convert .ino to .cpp
@@ -27,7 +27,6 @@ volatile unsigned int encoder0Pos = 0;  //Encoder value for ISR
 // Basically: (pin1) +5v --- WIPER --- (pin2) ANALOG_PIN_A2 --- WIPER --- (pin3) GND
 int potPin = 2;    // select the input pin for the potentiometer
 int pot0_val = 0;       // variable to store the value coming from the sensor
-
 
 
 struct timer
