@@ -38,4 +38,5 @@
 .vscode/launch.json
 # pio sublime text 3 files
 platformio.sublime-project
+platformio.sublime-workspace
 .ccls
