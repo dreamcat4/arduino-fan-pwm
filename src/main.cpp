@@ -49,20 +49,11 @@ struct pwm
 struct pid
 {
   double setpoint;
-
-  // Close to setPoint, be conservative
-  double consKp, consKi, consKd;
-
-  // Far from setPoint, be aggresive
-  double aggKp, aggKi, aggKd;
+  double kp, ki, kd;
 };
 
 
 
-// double setPoint, sensor0_temp, Output;                                          //I/O for PID
-// double aggKp=40, aggKi=2, aggKd=10;                                      //original: aggKp=4, aggKi=0.2, aggKd=1, Aggressive Turning,50,20,20
-// double consKp=20, consKi=1, consKd=5;                                    //original consKp=1, consKi=0.05, consKd=0.25, Conservative Turning,20,10,10
-// PID myPID(&sensor0_temp, &Output, &setPoint, consKp, consKi, consKd, REVERSE);  //Initialize PID
  
 
 // arduino uno atmega328p only has 3 fast timer registers
@@ -70,7 +61,6 @@ timer timer0, timer1, timer2;
 fan fan1, fan2, fan3;
 pwm pwm1, pwm2, pwm3;
 
-pid inner_pid0;
 
 
 // uint pid_loop_inner_freq = 100;
@@ -138,24 +128,31 @@ const long timer1_OCR1A_Setting = F_CPU / 38000L;
 //Setup Temperature Sensor
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
- 
-//Setup PID
+
 double setPoint, sensor0_temp, Output;                                          //I/O for PID
-double aggKp=40, aggKi=2, aggKd=10;                                      //original: aggKp=4, aggKi=0.2, aggKd=1, Aggressive Turning,50,20,20
-double consKp=20, consKi=1, consKd=5;                                    //original consKp=1, consKi=0.05, consKd=0.25, Conservative Turning,20,10,10
-PID myPID(&sensor0_temp, &Output, &setPoint, consKp, consKi, consKd, REVERSE);  //Initialize PID
+
+// Setup PID
+
+// inner pid = ip_, outer pid = op
+// + conservative = _slow, aggressive = _fast
+
+pid ip_slow = { 20, 01, 05 };
+pid ip_fast = { 40, 02, 10 };
+// pid ip_slow2 = { 20, 10, 10 };
+// pid ip_fast2 = { 50, 50, 20 };
+PID innerPID(&sensor0_temp, &Output, &setPoint, ip_slow.kp, ip_slow.ki, ip_slow.kd, REVERSE);
+
+pid op_slow = { 20, 01, 05 };
+pid op_fast = { 40, 02, 10 };
+// pid op_slow2 = { 20, 10, 10 };
+// pid op_fast2 = { 50, 50, 20 };
+PID outerPID(&sensor0_temp, &Output, &setPoint, op_slow.kp, op_slow.ki, op_slow.kd, REVERSE);
 
  
 //interface
 int loopCounter;
 void setup()
 {  
-  inner_pid0.aggKp = 40;
-  inner_pid0.aggKi = 02;
-  inner_pid0.aggKd = 10;
-  inner_pid0.consKp = 20;
-  inner_pid0.consKi = 20;
-  inner_pid0.consKd = 20;
 
 
   //Setup Pins
@@ -204,7 +201,7 @@ void setup()
 */
    
   //PID Setup
-  myPID.SetMode(AUTOMATIC);
+  outerPID.SetMode(AUTOMATIC);
   //TCCR2B = TCCR2B & 0b11111000 | 0x01;  //adjust the PWM Frequency, note: this changes timing like delay()
   
 
@@ -248,15 +245,15 @@ void outer_loop()
   if(gap < 1)
   {  
     //Close to setPoint, be conservative
-    myPID.SetTunings(consKp, consKi, consKd);
+    outerPID.SetTunings(op_slow.kp, op_slow.ki, op_slow.kd);
   }
   else
   {
      //Far from setPoint, be aggresive
-     myPID.SetTunings(aggKp, aggKi, aggKd);
+     outerPID.SetTunings(op_fast.kp, op_fast.ki, op_fast.kd);
   } 
 
-  myPID.Compute();
+  outerPID.Compute();
 
 
   Serial.print(",   ");
@@ -287,15 +284,15 @@ void inner_loop()
   // if(gap < 1)
   // {  
   //   //Close to setPoint, be conservative
-  //   myPID.SetTunings(consKp, consKi, consKd);
+  //   outerPID.SetTunings(consKp, consKi, consKd);
   // }
   // else
   // {
   //    //Far from setPoint, be aggresive
-  //    myPID.SetTunings(aggKp, aggKi, aggKd);
+  //    outerPID.SetTunings(aggKp, aggKi, aggKd);
   // } 
 
-  // myPID.Compute();
+  // outerPID.Compute();
 
 
   Serial.print(",   ");
