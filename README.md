@@ -5,8 +5,8 @@ Combines other Arduino sketches, plus extra work. Towards a better fan pwm contr
 <!-- MarkdownTOC -->
 
 * [Setting up PlatformIO](#setting-up-platformio)
-  * [Sublime Text 3](#sublime-text-3)
   * [VSCode](#vscode)
+  * [Sublime Text 3](#sublime-text-3)
 * [Credits](#credits)
   * [Arduino Sketch - Initial Code](#arduino-sketch---initial-code)
   * [High frequency pwm on ATMega 328p, by maipulating timer registers](#high-frequency-pwm-on-atmega-328p-by-maipulating-timer-registers)
@@ -21,6 +21,13 @@ Combines other Arduino sketches, plus extra work. Towards a better fan pwm contr
 <a id="setting-up-platformio"></a>
 ## Setting up PlatformIO
 
+<a id="vscode"></a>
+### VSCode
+
+There are already many tutorials out there, for how to install PlatformIO extension within VSCode IDE. And get things working.
+
+* Recommended Video - [#264​ PlatformIO for Arduino, ESP8266, and ESP32 Tutorial](https://www.youtube.com/watch?v=0poh_2rBq7E)
+
 <a id="sublime-text-3"></a>
 ### Sublime Text 3
 
@@ -29,7 +36,7 @@ Combines other Arduino sketches, plus extra work. Towards a better fan pwm contr
 Follow these official instructions:
 
 * https://docs.platformio.org/en/latest/integration/ide/sublimetext.html
-
+* With multiple projects open.. be sure to `Switch PlatformIO Project Environment`. In the blue status bar at the bottom
 
 In sublime text editor:
 
@@ -44,15 +51,6 @@ In terminal, navigate into this project root folder `arduino-fan-pwm`, and then 
 
 ```sh
 pio project init --ide sublimetext --board uno
-```
-
-<a id="vscode"></a>
-### VSCode
-
-There are already many tutorials out there, for how to install PlatformIO extension within VSCode IDE. And get things working.
-
-```sh
-pio project init --ide vscode --board uno
 ```
 
 <a id="credits"></a>
