@@ -1,15 +1,13 @@
-//// begin: convert .ino to .cpp
+
 #include <Arduino.h>
-//void doEncoder();
-//void clicked();
-//// end: convert .ino to .cpp
-
-#define uint uint8_t
-
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include "PID_v1.h"
 // #include <LiquidCrystal.h>
+
+// not sure why this isn't defined
+#define uint uint8_t
+
  
 //Definitions
 //#define FAN 9           // PWM output pin for fan
