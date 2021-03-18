@@ -170,8 +170,10 @@ void setup()
 //  OCR1B =  timer1_OCR1A_Setting - 1;                 // zero relative  
 
 
-// start serial port for temperature readings
-  Serial.begin(9600);
+  // start serial port for temperature readings
+
+  // Serial.begin(9600);
+  Serial.begin(19200);
   Serial.println("Start");
   
   //Temperature Setup
