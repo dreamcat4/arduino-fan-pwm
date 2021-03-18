@@ -43,6 +43,10 @@
 * [Understanding PID Control, Part 6 Manual and Automatic Tuning Methods](https://www.youtube.com/watch?v=qj8vTO1eIHo)
 * [Understanding PID Control, Part 7 Important PID Concepts](https://www.youtube.com/watch?v=tbgV6caAVcs)
 
+Dual Loop PID:
+
+* https://youtu.be/tbgV6caAVcs?t=125
+
 <a id="youtube---new"></a>
 ### Youtube - New
 
