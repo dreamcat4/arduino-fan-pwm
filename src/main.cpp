@@ -10,34 +10,31 @@
 #define uint  uint16_t
 #define ulong uint32_t
 
-void setup();
-void loop();
-
-//Definitions
-//#define FAN 9           // PWM output pin for fan
-#define ONE_WIRE_BUS 8  // Temperature Input is on Pin 2 of the Dallas ds18b20
-// #define click 3         //Rotary Encoder Click
-//#define encoder0PinA  2 //Rotary Encoder Pin A
-//#define encoder0PinB  4 //Rotary Encoder Pin B
-#define CRITICAL 50.00  //Critical temperature to ignore PID and turn on fans
-
-
-// #define FAN0_SENSE 2
-// #define FAN1_SENSE 3
-// #define FAN2_SENSE 0
-
-volatile unsigned int encoder0Pos = 0;  //Encoder value for ISR
-
-
-// Analog Read to LED
+// Analog Read Potentiometer Value
 // for wiring, see: https://www.arduino.cc/en/tutorial/potentiometer
 // Basically: (pin1) +5v --- WIPER --- (pin2) ANALOG_PIN_A2 --- WIPER --- (pin3) GND
-int potPin = 2;    // select the input pin for the potentiometer
-int pot0_val = 0;       // variable to store the value coming from the sensor
-
+// int potPin = 2;    // select the input pin for the potentiometer
+// int pot0_val = 0;       // variable to store the value coming from the sensor
 
 struct timer
 {
+};
+// arduino uno atmega328p only has 3 fast timer registers
+timer timer0, timer1, timer2;
+
+struct pwm
+{
+  float pwm_min, pwm_max, pwm_target;
+  float pwm;
+  uint pad;
+};
+pwm pwm0, pwm1;
+
+
+struct pid
+{
+  double setpoint;
+  double kp, ki, kd;
 };
 
 struct fan
@@ -53,34 +50,8 @@ struct fan
 fan fan0 = { 2, 10, 0, 0, 0, 900, 2600, 1500, 0};
 fan fan1 = { 3, 12, 0, 0, 0, 200, 2000, 1000, 0};
 
-
-struct pwm
-{
-  float pwm_min, pwm_max, pwm_target;
-  float pwm;
-  uint pad;
-};
-
-struct pid
-{
-  double setpoint;
-  double kp, ki, kd;
-};
-
-
-
- 
-
-// arduino uno atmega328p only has 3 fast timer registers
-timer timer0, timer1, timer2;
-pwm pwm0, pwm1;
-
-
-
-// uint pid_loop_inner_freq = 100;
+// uint pid_loop_inner_freq = 10;
 uint pid_loop_outer_inner_ratio = 7;
-
-
 
 // PWM Modulating a 38 kHz frequency duty cycle
 // Source: http://www.gammon.com.au/forum/?id=11504
@@ -105,34 +76,8 @@ uint pid_loop_outer_inner_ratio = 7;
 //output    OC2A   pin 17  (D11)
 //output    OC2B   pin  5  (D3)
 
-
-//const byte POTENTIOMETER = A0;
-//const byte LED = 10;  // Timer 1 "B" output: OC1B
-//#define FAN 9           // PWM output pin for fan
-#define FAN 10           // PWM output pin for fan
-
 // Clock frequency divided by 38 kHz frequency desired
 const long timer1_OCR1A_Setting = F_CPU / 38000L;
-
-//void setup() 
-// {
-//  pinMode (LED, OUTPUT);
-//
-//  // set up Timer 1 - gives us 38.005 kHz 
-//  // Fast PWM top at OCR1A
-//  TCCR1A = bit (WGM10) | bit (WGM11) | bit (COM1B1); // fast PWM, clear OC1B on compare
-//  TCCR1B = bit (WGM12) | bit (WGM13) | bit (CS10);   // fast PWM, no prescaler
-//  OCR1A =  timer1_OCR1A_Setting - 1;                 // zero relative  
-//  }  // end of setup
-
-//void loop()
-//  {
-//  // alter Timer 1 duty cycle in accordance with pot reading
-//  OCR1B = (((long) (analogRead (POTENTIOMETER) + 1) * timer1_OCR1A_Setting) / 1024L) - 1;
-//  
-//  // do other stuff here
-//  }
- 
 
 // float fan0_overide = 2600;
 float fan0_overide = 5000;
@@ -146,9 +91,9 @@ double tach_threshold_mid_fine = 0.040;
 uint near_overshoots = 0;
 uint max_near_overshoots = 3;
 
-// LiquidCrystal lcd(12, 11, 13, 5,6,7);  //set up LCD
- 
-//Setup Temperature Sensor
+// Setup Temperature Sensor
+// Temperature Input is on Pin 2 of the Dallas ds18b20
+#define ONE_WIRE_BUS 8
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 
@@ -229,32 +174,13 @@ ulong ms_ellapsed;
 // float fan0_rpm, fan1_rpm;
 // float fan0_rpm_tgt, fan1_rpm_tgt;
 
-void fan0_tick()
-{
-  // Serial.println("    fan0_tick()");
-  // fan0_tach++;
-  fan0.tach++;
-}
-
-void fan1_tick()
-{
-  fan1.tach++;
-}
-
-
-
-void clear_tachs()
-{
-  fan0.tach = 0;
-  fan1.tach = 0;
-}
-
-
+void fan0_tick()   { fan0.tach++; }
+void fan1_tick()   { fan1.tach++; }
+void clear_tachs() { fan0.tach = 0; fan1.tach = 0; }
 
 uint rpm_to_tach(double rpm, uint ms_ellapsed)
 {
   // double tach_exact = (rpm * 2 * (double)ms_ellapsed) / (60 * 1000);
-
   double tach_exact = (rpm * 2 / 60) * ms_ellapsed / 1000;
 
   // Serial.println("");
@@ -281,9 +207,8 @@ double tach_to_rpm(uint tach, uint ms_ellapsed)
 
 
 unsigned long start, stop;
-
-//interface
 int loopCounter;
+
 void setup()
 {  
 
@@ -291,22 +216,15 @@ void setup()
   pinMode(fan0.pin_pwm, OUTPUT);                   // Output for fan speed, 0 to 255
   pinMode(fan1.pin_pwm, OUTPUT);                   // Output for fan speed, 0 to 255
 
-
   pinMode(fan0.pin_tach, INPUT);
   // pinMode(fan0.pin_tach, INPUT_PULLUP);
   // pinMode(fan0.pin_tach, INPUT_PULLDOWN);
-
   // pinMode(fan1.pin_tach, INPUT_PULLUP);
 
   // setup interupt callbacks
   // arduino uno atmega 328p can only support max 2 digital pin interrupts!!
   attachInterrupt(digitalPinToInterrupt(fan0.pin_tach), fan0_tick, RISING);
   // attachInterrupt(digitalPinToInterrupt(fan1.tach_pin), fan1_tick, RISING);
-
-
-
-  // arduino uno atmega 328p can only support max 2 digital pin interrupts!!
-  // pinMode(FAN2_SENSE, INPUT);
 
   // set up Timer 1 - gives us 38.005 kHz 
   // Fast PWM top at OCR1A
@@ -316,14 +234,11 @@ void setup()
   OCR1A =  timer1_OCR1A_Setting - 1;                 // zero relative  
 //  OCR1B =  timer1_OCR1A_Setting - 1;                 // zero relative  
 
-
-  // start serial port for temperature readings
-
   // Serial.begin(9600);
   Serial.begin(19200);
   Serial.println("Start");
   
-  //Temperature Setup
+  // Temperature Setup
   sensors.begin();                    //Start Library
   sensors.requestTemperatures();      // Send the command to get temperatures
   sensor0_temp = sensors.getTempCByIndex(0); //Set Input to Current Temperature
@@ -346,40 +261,28 @@ void setup()
 //  double temp3Max = 50;
 //  double temp3Tgt = setPoint;
 
-
-
-   
-  //PID Setup
+  // PID Setup
   innerPID.SetMode(AUTOMATIC);
   innerPID.SetOutputLimits(innerS_min, innerS_max);
 
   outerPID.SetMode(AUTOMATIC);
   //TCCR2B = TCCR2B & 0b11111000 | 0x01;  //adjust the PWM Frequency, note: this changes timing like delay()
-  
-
-//  pinMode(encoder0PinA, INPUT); 
-//  digitalWrite(encoder0PinA, HIGH);       // Turn on pullup resistor
-//  pinMode(encoder0PinB, INPUT); 
-//  digitalWrite(encoder0PinB, HIGH);       // Turn on pullup resistor
  
-
-
-   
   loopCounter=0;
 
-  // ater requesting a temperature sample from a dallas ds18b20, we have to wait for the sensor to respond back
+  // After requesting a temperature sample from a dallas ds18b20, we have to wait for the sensor to respond back
   sensors.setWaitForConversion(false);  // make it async
   sensors.requestTemperatures();
 }
 
+
+// input  = temp
+// output = fan rpm value
+// output = relay, OTP over temperature timeout period exceeded
 void outer_loop()
 {
   Serial.println("");
   Serial.println("outer_loop()");
-
-  // input  = temp
-  // output = fan rpm value
-  // output = relay, OTP over temperature timeout period exceeded
 
   // // get the potentiometer input value
   // pot0_val = analogRead(potPin);
@@ -402,13 +305,11 @@ void outer_loop()
      //Far from setPoint, be aggresive
      outerPID.SetTunings(op_fast.kp, op_fast.ki, op_fast.kd);
   } 
-
   outerPID.Compute();
 
-
-  Serial.print("  ");
-  Serial.print("pot0_val=");
-  Serial.print(pot0_val);
+  // Serial.print("  ");
+  // Serial.print("pot0_val=");
+  // Serial.print(pot0_val);
 
   Serial.print("    ");
   Serial.print("sensor0_temp=");
@@ -421,33 +322,25 @@ void outer_loop()
 
   Serial.println("");
 
-
   // fan0.rpm_target = fan0_overide;
 }
 
 
 
+// input  = current fan rpm
+// output = desired fan rpm
+// output = relay, fan tach failed
 void inner_loop()
 {
   Serial.println("  inner_loop()");
 
-  // input  = current fan rpm
-  // output = desired fan rpm
-  // output = relay, fan tach failed
-
-
   clear_tachs();
-  // delay(5);
-  // clear_tachs();
-  // delay(5);
-  
   start = millis();       
   delay(innerS_delay);
   stop  = millis();
   ms_ellapsed = stop - start;
 
   fan0.last_tach = fan0.tach;
-
 
   Serial.print("     ");
   Serial.print("ms_ellapsed=");
@@ -461,13 +354,8 @@ void inner_loop()
   Serial.print("fan0.tach_target=");
   Serial.print(fan0.tach_target);
 
-  // fan0_rpm = fan0_tach / 4;
-
   fan0.rpm = (fan0.last_tach * 60 * 1000) / (2 * ms_ellapsed);
   // fan1_rpm = (fan1_last_tach * 60 * 1000) / ms_ellapsed;
-  // clear_tachs();
-
-
 
   Serial.print("     ");
   Serial.print("fan0.rpm=");
@@ -480,7 +368,6 @@ void inner_loop()
   // Serial.print(",   ");
   // Serial.print("fan1_rpm=");
   // Serial.print(fan1_rpm);
-
 
 
   // Compute PID value
@@ -512,25 +399,12 @@ void inner_loop()
   // if (innerS < innerS_min)
   //   innerS = innerS_min;
 
-
-//  //Write PID output to fan if not critical
-//  if (sensor0_temp < CRITICAL)
-//    analogWrite(FAN,Output);
-//  else
-//    analogWrite(FAN,255);
-
-
-
   if( abs(innerS - innerS_last) > innerS_max_change_abs )
   {
     if( innerS > innerS_last)
-    {
        innerS = innerS_last + innerS_max_change_abs;
-    }
     else
-    {
       innerS = innerS_last - innerS_max_change_abs;       
-    }
   }
 
 
@@ -550,18 +424,11 @@ void inner_loop()
   Serial.println(innerS_last);
 
   // alter Timer 1 duty cycle in accordance with pot reading
-  // OCR1B = (((long) (pot0_val + 1) * timer1_OCR1A_Setting) / 1024L) - 1;
   OCR1B = (((long) (innerS_last + 1) * timer1_OCR1A_Setting) / 1024L) - 1;
 
-//  OCR1A = (((long) (pot0_val + 1) * timer1_OCR1A_Setting) / 1024L) - 1;
-  // Serial.println("loop6");
-
-
   loopCounter++;
-
   // Serial.println(loopCounter);
   Serial.println("");
-
 }
 
 void loop()
