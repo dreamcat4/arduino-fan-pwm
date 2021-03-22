@@ -15,42 +15,6 @@
 // Basically: (pin1) +5v --- WIPER --- (pin2) ANALOG_PIN_A2 --- WIPER --- (pin3) GND
 // int potPin = 2;    // select the input pin for the potentiometer
 // int pot0_val = 0;       // variable to store the value coming from the sensor
-
-struct timer
-{
-};
-// arduino uno atmega328p only has 3 fast timer registers
-timer timer0, timer1, timer2;
-
-// a dallas ds18b20 temperature object
-struct temp
-{
-  float temp_min, temp_max, temp_target;
-  float temp;
-  uint pad;
-};
-temp temp0, temp1;
-
-// pid object - a single set of pid configuration values
-struct pid
-{
-  double setpoint;
-  double kp, ki, kd;
-};
-
-struct fan
-{
-   uint pin_tach, pin_pwm;
-   double rpm_min, rpm_max, rpm_target;
-   double tach_min, tach_max, tach_target;
-   double rpm, tach, last_tach;
-   uint pad;
-};
-
-// fan fan0 = { 2, 10, 0, 0, 0, 200, 1000, 2300, 0};
-fan fan0 = { 2, 10, 900, 2600, 1500 };
-fan fan1 = { 3, 12, 200, 2000, 1100 };
-
 // uint pid_loop_inner_freq = 10;
 uint pid_loop_outer_inner_ratio = 7;
 
@@ -81,18 +45,17 @@ uint pid_loop_outer_inner_ratio = 7;
 const long timer1_OCR1A_Setting = F_CPU / 38000L;
 
 
-// don't output 0.00 for the pwm duty cyle!
-// value pwm minimum value is slightly above zero
-// double innerS_min = 0001.00;
-// double innerS_min = 0001.91;
+// don't output 0.00 for the 0% pwm duty cyle!
+// because it causes the arduino timer to then output +5v continuus
+// on the arduino uno atmega 328p: '2.00' seems to be the lowest
+// possible valuem that still produces a valid pwm signal
 double innerS_min = 0002.00;
 
-// i believe it's set to 1024 , for 100% pwm
-// double innerS_max = 1000.00;
-// double innerS_max = 1022.00;
+// don't output 1024, for 100% pwm duty cycle!
+// because it causes the arduino timer to then output 0v continuus
+// on the arduino uno atmega 328p: '1023.00' seems to be the highest
+// possible value, that still produces a valid pwm signal
 double innerS_max = 1023.00;
-// double innerS_max = 1024.00;
-// double innerS_max = 2048.00;
 
 // recude this value to reduce fan overshoot
 // double innerS_max = 900.00;
@@ -109,10 +72,53 @@ uint max_near_overshoots = 3;
 double innerS_max_change = 0.4;
 double innerS_max_change_abs = innerS_max * innerS_max_change;
 
+struct timer
+{
+};
+// arduino uno atmega328p only has 3 fast timer registers
+timer timer0, timer1, timer2;
 
-// Setup Temperature Sensor
+// a dallas ds18b20 temperature object
+struct temp
+{
+  float temp_min, temp_max, temp_target;
+  float temp;
+  uint pad;
+};
+temp temp0, temp1;
 
-// Temperature Input is on Pin 2 of the Dallas ds18b20
+// pid object - a single set of pid configuration values
+struct pid
+{
+  double setpoint;
+  double kp, ki, kd;
+};
+
+struct fan
+{
+   uint pin_tach, pin_pwm;
+   double rpm_min, rpm_max, rpm_target, pwm_max_change_abs;
+   uint near_overshoots;
+   double tach_min, tach_max, tach_target;
+   double rpm, tach, last_tach, pwm, pwm_last;
+   uint pad;
+};
+
+
+// example - how to declare a fan instance
+// ========================================
+// fan FAN_NAME = { arduino_pin_tach, arduino_pin_pwm, min_rpm, max_rpm, default_rpm, \
+                    pwm_max_change_per_cycle, num_fine_seek_operations_until_settling }
+
+fan fan0 = { 2, 10, 900, 2600, 1500, innerS_max_change_abs, max_near_overshoots };
+fan fan1 = { 3, 12, 200, 2000, 1100, innerS_max_change_abs, max_near_overshoots };
+
+// fan fans[] = { fan0, fan1 };
+fan fans[] = { fan0 };
+uint num_fans = sizeof(fans);
+
+// Setup Dallas DS18b20 Temperature Sensor
+// BTW i2c is on pin 2 (middle pin) of the Dallas ds18b20
 #define ONE_WIRE_BUS 8
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
@@ -121,42 +127,42 @@ double setPoint, sensor0_temp, Output;
 double innerS, innerS_last;
 double outerS, outerS_last;
 
-
-
 uint innerS_delay = 1700;
 // uint innerS_delay = 1000;
 
-
-// Setup PID
-
 // inner pid = ip_, outer pid = op
-// + conservative = _slow, aggressive = _fast
+// aggressive=_fast, medium=_mid, conservative=_fine
+
+// original
+// pid ip_fine_orig = { 20, 10, 10 };
+// pid ip_fast_orig = { 50, 50, 20 };
+
+// for rpm
+// pid ip_fast = {  2.0, 00.5, 0.5 };
+// pid ip_fast = { 4, 0.2, 1.0 };
+// pid ip_fast = {  8.0, 00.0, 2.0 };
 
 // pid ip_fine = {  2.7, 00.8, 0.6 };
-// pid ip_fine = {  27, 08.8, 6.6 };
+// pid ip_fine = { 2, 0.1, 0.5 };
 
-// pid ip_fine = {  170, 120, 110 };
-
-pid ip_fast = {  140, 80, 80 };
+// for tach
 // pid ip_fast = {  70, 40, 40 };
 // pid ip_fast = {  30, 20, 20 };
+pid ip_fast = {  140, 80, 80 };
+
+pid ip_mid  = {  10, 10, 10 };
+
+// pid ip_fine = {  27, 08.8, 6.6 };
+// pid ip_fine = {  170, 120, 110 };
 // pid ip_fine = {  70, 40, 40 };
 // pid ip_fine = {  20, 10, 10 };
-pid ip_mid  = {  10, 10, 10 };
 pid ip_fine = {  03, 03, 03 };
 
 
-// pid ip_fast = {  2.0, 00.5, 0.5 };
-// pid ip_fast = {  8.0, 00.0, 2.0 };
-
-// pid ip_fine = { 2, 0.1, 0.5 };
-// pid ip_fast = { 4, 0.2, 1.0 };
-
-// pid ip_fine2 = { 20, 10, 10 };
-// pid ip_fast2 = { 50, 50, 20 };
 
 // PID innerPID(&fan0.rpm, &innerS, &fan0.rpm_target, ip_fine.kp, ip_fine.ki, ip_fine.kd, DIRECT);
-PID innerPID(&fan0.last_tach, &innerS, &fan0.tach_target, ip_fine.kp, ip_fine.ki, ip_fine.kd, DIRECT);
+// PID innerPID(&fan0.last_tach, &innerS, &fan0.tach_target, ip_fine.kp, ip_fine.ki, ip_fine.kd, DIRECT);
+PID innerPID(&fan0.last_tach, &fan0.pwm, &fan0.tach_target, ip_fine.kp, ip_fine.ki, ip_fine.kd, DIRECT);
 
 pid op_fast = { 40, 2.0, 10 };
 pid op_med  = { 20, 1.0, 05 };
@@ -166,15 +172,11 @@ pid op_slow = { 10, 0.5, 02 };
 // pid op_fast2 = { 50, 50, 20 };
 PID outerPID(&sensor0_temp, &outerS, &setPoint, op_slow.kp, op_slow.ki, op_slow.kd, REVERSE);
 
+// for inner pid loop
+ulong ms_ellapsed;
 
 // fan tachometer
 // arduino uno atmega 328p can only support max 2 digital pin interrupts!!
-
-ulong ms_ellapsed;
-// ulong fan0_tach, fan1_tach;
-// float fan0_rpm, fan1_rpm;
-// float fan0_rpm_tgt, fan1_rpm_tgt;
-
 void fan0_tick()   { fan0.tach++; }
 void fan1_tick()   { fan1.tach++; }
 void clear_tachs() { fan0.tach = 0; fan1.tach = 0; }
@@ -200,12 +202,37 @@ void fan_instance_autofill_tachs(fan &fan_instance)
   fan_instance.tach_max    = rpm_to_tach(fan_instance.rpm_max,    innerS_delay);
 }
 
+void fan_instance_moderate_pwm(double gap, fan &fan_instance)
+{
+  if( abs(fan_instance.pwm - fan_instance.pwm_last) > fan_instance.pwm_max_change_abs )
+  {
+    if( fan_instance.pwm > fan_instance.pwm_last)
+    {
+      fan_instance.pwm = fan_instance.pwm_last + fan_instance.pwm_max_change_abs;
+    }
+    else
+    {
+      fan_instance.pwm = fan_instance.pwm_last - fan_instance.pwm_max_change_abs;       
+    }
+  }
+
+  if(abs(gap) > tach_threshold_mid_fine)
+  {
+    fan_instance.pwm_last = fan_instance.pwm;
+    fan_instance.near_overshoots = 0;
+  }
+  else if( (gap < 0) && (fan_instance.near_overshoots < max_near_overshoots) )
+  {
+    fan_instance.pwm_last = fan_instance.pwm;
+    fan_instance.near_overshoots++;
+  }
+}
+
 unsigned long start, stop;
 int loopCounter;
 
 void setup()
 {  
-
   //Setup Pins
   pinMode(fan0.pin_pwm, OUTPUT);                   // Output for fan speed, 0 to 255
   pinMode(fan1.pin_pwm, OUTPUT);                   // Output for fan speed, 0 to 255
@@ -319,7 +346,6 @@ void outer_loop()
 }
 
 
-
 // input  = current fan rpm
 // output = desired fan rpm
 // output = relay, fan tach failed
@@ -387,41 +413,14 @@ void inner_loop()
   } 
 
   innerPID.Compute();
-
-  // // don't output 0.00 for the pwm duty cyle!
-  // if (innerS < innerS_min)
-  //   innerS = innerS_min;
-
-  if( abs(innerS - innerS_last) > innerS_max_change_abs )
-  {
-    if( innerS > innerS_last)
-    {
-      innerS = innerS_last + innerS_max_change_abs;
-    }
-    else
-    {
-      innerS = innerS_last - innerS_max_change_abs;       
-    }
-  }
-
-
-  if(abs(gap) > tach_threshold_mid_fine)
-  {
-    innerS_last = innerS;
-    near_overshoots = 0;
-  }
-  else if( (gap < 0) && (near_overshoots < max_near_overshoots) )
-  {
-    innerS_last = innerS;
-    near_overshoots++;
-  }
+  fan_instance_moderate_pwm(gap, fan0);
 
   Serial.print(",   ");
-  Serial.print("innerS_last (PID)=");
-  Serial.println(innerS_last);
+  Serial.print("fan0.pwm_last (PID)=");
+  Serial.println(fan0.pwm_last);
 
   // alter Timer 1 duty cycle in accordance with pot reading
-  OCR1B = (((long) (innerS_last + 1) * timer1_OCR1A_Setting) / 1024L) - 1;
+  OCR1B = (((long) (fan0.pwm_last + 1) * timer1_OCR1A_Setting) / 1024L) - 1;
 
   loopCounter++;
   // Serial.println(loopCounter);
