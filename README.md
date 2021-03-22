@@ -77,6 +77,8 @@ This is a combined effort, after watching many educational videos explaining PID
 <a id="timers"></a>
 ## timers
 
+* [The Secrets Of Arduino PWM](https://www.arduino.cc/en/pmwiki.php?n=Tutorial/SecretsOfArduinoPWM)
+
 <a id="atmega328p-uno"></a>
 ### atmega328p (uno)
 

@@ -3,13 +3,16 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <PID_v1.h>
-#include <PID_AutoTune_v0.h>
-// #include <LiquidCrystal.h>
+// #include <PID_AutoTune_v0.h>
+// #include <EnableInterrupt.h>
 
 // not sure why this isn't defined
 #define uint  uint16_t
 #define ulong uint32_t
- 
+
+void setup();
+void loop();
+
 //Definitions
 //#define FAN 9           // PWM output pin for fan
 #define ONE_WIRE_BUS 8  // Temperature Input is on Pin 2 of the Dallas ds18b20
@@ -40,14 +43,15 @@ struct timer
 struct fan
 {
    uint pin_tach, pin_pwm;
-   ulong tach, last_tach;
+   double tach, last_tach, tach_target;
    double rpm_min, rpm_max, rpm_target;
    double rpm;
    uint pad;
 };
 
-fan fan0 = { 2, 10, 0, 0, 200, 1000, 2300, 0};
-fan fan1 = { 3, 12, 0, 0, 200, 2000, 1000, 0};
+// fan fan0 = { 2, 10, 0, 0, 0, 200, 1000, 2300, 0};
+fan fan0 = { 2, 10, 0, 0, 0, 900, 2600, 1500, 0};
+fan fan1 = { 3, 12, 0, 0, 0, 200, 2000, 1000, 0};
 
 
 struct pwm
@@ -133,8 +137,15 @@ const long timer1_OCR1A_Setting = F_CPU / 38000L;
 // float fan0_overide = 2600;
 float fan0_overide = 5000;
 
-float rpm_threshold_near_far = 800;
- 
+// double tach_threshold_near_mid = 0.20;
+// double tach_threshold_mid_fine = 0.05;
+
+double tach_threshold_near_mid = 0.160;
+double tach_threshold_mid_fine = 0.040;
+
+uint near_overshoots = 0;
+uint max_near_overshoots = 3;
+
 // LiquidCrystal lcd(12, 11, 13, 5,6,7);  //set up LCD
  
 //Setup Temperature Sensor
@@ -142,19 +153,32 @@ OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 
 double setPoint, sensor0_temp, Output;                                          //I/O for PID
-double innerS, outerS;
+double innerS, innerS_last;
+double outerS, outerS_last;
 
 // don't output 0.00 for the pwm duty cyle!
 // value pwm minimum value is slightly above zero
+// double innerS_min = 0001.00;
+// double innerS_min = 0001.91;
 double innerS_min = 0002.00;
 
 // i believe it's set to 1024 , for 100% pwm
 // double innerS_max = 1000.00;
-double innerS_max = 1022.00;
-// double innerS_max = 1023.00;
+// double innerS_max = 1022.00;
+double innerS_max = 1023.00;
 // double innerS_max = 1024.00;
 // double innerS_max = 2048.00;
 
+// recude this value to reduce fan overshoot
+// double innerS_max = 900.00;
+
+double innerS_max_change = 0.4;
+double innerS_max_change_abs = innerS_max * innerS_max_change;
+
+
+uint innerS_delay = 1700;
+
+// uint innerS_delay = 1000;
 
 
 // Setup PID
@@ -162,20 +186,36 @@ double innerS_max = 1022.00;
 // inner pid = ip_, outer pid = op
 // + conservative = _slow, aggressive = _fast
 
-pid ip_slow = {  5.0, 03.0, 0.5 };
-pid ip_fast = {  5.0, 03.0, 0.5 };
+// pid ip_fine = {  2.7, 00.8, 0.6 };
+// pid ip_fine = {  27, 08.8, 6.6 };
+
+// pid ip_fine = {  170, 120, 110 };
+
+pid ip_fast = {  140, 80, 80 };
+// pid ip_fast = {  70, 40, 40 };
+// pid ip_fast = {  30, 20, 20 };
+// pid ip_fine = {  70, 40, 40 };
+// pid ip_fine = {  20, 10, 10 };
+pid ip_mid  = {  10, 10, 10 };
+pid ip_fine = {  03, 03, 03 };
+
+
+// pid ip_fast = {  2.0, 00.5, 0.5 };
 // pid ip_fast = {  8.0, 00.0, 2.0 };
 
-// pid ip_slow = { 2, 0.1, 0.5 };
+// pid ip_fine = { 2, 0.1, 0.5 };
 // pid ip_fast = { 4, 0.2, 1.0 };
 
-// pid ip_slow2 = { 20, 10, 10 };
+// pid ip_fine2 = { 20, 10, 10 };
 // pid ip_fast2 = { 50, 50, 20 };
 
-PID innerPID(&fan0.rpm, &innerS, &fan0.rpm_target, ip_slow.kp, ip_slow.ki, ip_slow.kd, DIRECT);
+// PID innerPID(&fan0.rpm, &innerS, &fan0.rpm_target, ip_fine.kp, ip_fine.ki, ip_fine.kd, DIRECT);
+PID innerPID(&fan0.last_tach, &innerS, &fan0.tach_target, ip_fine.kp, ip_fine.ki, ip_fine.kd, DIRECT);
 
-pid op_slow = { 20, 01, 05 };
-pid op_fast = { 40, 02, 10 };
+pid op_fast = { 40, 2.0, 10 };
+pid op_med  = { 20, 1.0, 05 };
+pid op_slow = { 10, 0.5, 02 };
+
 // pid op_slow2 = { 20, 10, 10 };
 // pid op_fast2 = { 50, 50, 20 };
 PID outerPID(&sensor0_temp, &outerS, &setPoint, op_slow.kp, op_slow.ki, op_slow.kd, REVERSE);
@@ -209,14 +249,43 @@ void clear_tachs()
   fan1.tach = 0;
 }
 
+
+
+uint rpm_to_tach(double rpm, uint ms_ellapsed)
+{
+  // double tach_exact = (rpm * 2 * (double)ms_ellapsed) / (60 * 1000);
+
+  double tach_exact = (rpm * 2 / 60) * ms_ellapsed / 1000;
+
+  // Serial.println("");
+  // Serial.print("rpm = ");
+  // Serial.print(rpm);
+  // Serial.print(", ms_ellapsed = ");
+  // Serial.println(ms_ellapsed);
+  // Serial.print("double tach_exact = ");
+  // Serial.println(tach_exact);
+  // Serial.print("(uint)round(tach_exact) = ");
+  // Serial.println((uint)round(tach_exact));
+  // Serial.println("");
+  // delay(999999);
+  // (uint)round(tach_exact);
+
+   // round to nearest whole integer
+  return (uint)round(tach_exact);
+}
+
+double tach_to_rpm(uint tach, uint ms_ellapsed)
+{
+   return ((double)tach * 60 * 1000) / (2 * ms_ellapsed);
+}
+
+
 unsigned long start, stop;
 
 //interface
 int loopCounter;
 void setup()
 {  
-  // clear_tachs();
-
 
   //Setup Pins
   pinMode(fan0.pin_pwm, OUTPUT);                   // Output for fan speed, 0 to 255
@@ -264,6 +333,8 @@ void setup()
   double temp0Min = 25;
   double temp0Max = 50;
   double temp0Tgt = setPoint;
+
+  fan0.tach_target = rpm_to_tach(fan0.rpm_target, innerS_delay);
 
 //  double temp1Min = 25;
 //  double temp1Max = 50;
@@ -322,7 +393,7 @@ void outer_loop()
   //Compute PID value
   double gap = abs(setPoint-sensor0_temp); //distance away from setpoint
   if(gap < 1)
-  {  
+  {
     //Close to setPoint, be conservative
     outerPID.SetTunings(op_slow.kp, op_slow.ki, op_slow.kd);
   }
@@ -355,6 +426,7 @@ void outer_loop()
 }
 
 
+
 void inner_loop()
 {
   Serial.println("  inner_loop()");
@@ -370,7 +442,7 @@ void inner_loop()
   // delay(5);
   
   start = millis();       
-  delay(1000);
+  delay(innerS_delay);
   stop  = millis();
   ms_ellapsed = stop - start;
 
@@ -384,6 +456,10 @@ void inner_loop()
   Serial.print(",    ");
   Serial.print("fan0.last_tach=");
   Serial.print(fan0.last_tach);
+
+  Serial.print("     ");
+  Serial.print("fan0.tach_target=");
+  Serial.print(fan0.tach_target);
 
   // fan0_rpm = fan0_tach / 4;
 
@@ -408,16 +484,21 @@ void inner_loop()
 
 
   // Compute PID value
-  double gap = abs(fan0.rpm_target - fan0.rpm); //distance away from setpoint
+  double gap = (fan0.tach_target - fan0.tach) / fan0.tach_target; //distance away from setpoint
 
   Serial.print("     ");
   Serial.print("gap=");
   Serial.print(gap);
 
-  if(gap < rpm_threshold_near_far)
-  {  
-    //Close to setPoint, be conservative
-    innerPID.SetTunings(ip_slow.kp, ip_slow.ki, ip_slow.kd);
+  if(abs(gap) < tach_threshold_mid_fine)
+  {
+    // Close distance to setPoint
+    innerPID.SetTunings(ip_fine.kp, ip_fine.ki, ip_fine.kd);
+  }
+  else if(abs(gap) < tach_threshold_near_mid)
+  {
+    // Medium distance to setPoint
+    innerPID.SetTunings(ip_mid.kp, ip_mid.ki, ip_mid.kd);
   }
   else
   {
@@ -431,9 +512,6 @@ void inner_loop()
   // if (innerS < innerS_min)
   //   innerS = innerS_min;
 
-  Serial.print(",   ");
-  Serial.print("innerS (PID)=");
-  Serial.println(innerS);
 
 //  //Write PID output to fan if not critical
 //  if (sensor0_temp < CRITICAL)
@@ -442,9 +520,38 @@ void inner_loop()
 //    analogWrite(FAN,255);
 
 
+
+  if( abs(innerS - innerS_last) > innerS_max_change_abs )
+  {
+    if( innerS > innerS_last)
+    {
+       innerS = innerS_last + innerS_max_change_abs;
+    }
+    else
+    {
+      innerS = innerS_last - innerS_max_change_abs;       
+    }
+  }
+
+
+  if(abs(gap) > tach_threshold_mid_fine)
+  {
+    innerS_last = innerS;
+    near_overshoots = 0;
+  }
+  else if( (gap < 0) && (near_overshoots < max_near_overshoots) )
+  {
+    innerS_last = innerS;
+    near_overshoots++;
+  }
+
+  Serial.print(",   ");
+  Serial.print("innerS_last (PID)=");
+  Serial.println(innerS_last);
+
   // alter Timer 1 duty cycle in accordance with pot reading
   // OCR1B = (((long) (pot0_val + 1) * timer1_OCR1A_Setting) / 1024L) - 1;
-  OCR1B = (((long) (innerS + 1) * timer1_OCR1A_Setting) / 1024L) - 1;
+  OCR1B = (((long) (innerS_last + 1) * timer1_OCR1A_Setting) / 1024L) - 1;
 
 //  OCR1A = (((long) (pot0_val + 1) * timer1_OCR1A_Setting) / 1024L) - 1;
   // Serial.println("loop6");
