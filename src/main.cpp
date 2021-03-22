@@ -22,15 +22,16 @@ struct timer
 // arduino uno atmega328p only has 3 fast timer registers
 timer timer0, timer1, timer2;
 
-struct pwm
+// a dallas ds18b20 temperature object
+struct temp
 {
-  float pwm_min, pwm_max, pwm_target;
-  float pwm;
+  float temp_min, temp_max, temp_target;
+  float temp;
   uint pad;
 };
-pwm pwm0, pwm1;
+temp temp0, temp1;
 
-
+// pid object - a single set of pid configuration values
 struct pid
 {
   double setpoint;
@@ -40,15 +41,15 @@ struct pid
 struct fan
 {
    uint pin_tach, pin_pwm;
-   double tach, last_tach, tach_target;
    double rpm_min, rpm_max, rpm_target;
-   double rpm;
+   double tach_min, tach_max, tach_target;
+   double rpm, tach, last_tach;
    uint pad;
 };
 
 // fan fan0 = { 2, 10, 0, 0, 0, 200, 1000, 2300, 0};
-fan fan0 = { 2, 10, 0, 0, 0, 900, 2600, 1500, 0};
-fan fan1 = { 3, 12, 0, 0, 0, 200, 2000, 1000, 0};
+fan fan0 = { 2, 10, 900, 2600, 1500 };
+fan fan1 = { 3, 12, 200, 2000, 1100 };
 
 // uint pid_loop_inner_freq = 10;
 uint pid_loop_outer_inner_ratio = 7;
@@ -79,27 +80,6 @@ uint pid_loop_outer_inner_ratio = 7;
 // Clock frequency divided by 38 kHz frequency desired
 const long timer1_OCR1A_Setting = F_CPU / 38000L;
 
-// float fan0_overide = 2600;
-float fan0_overide = 5000;
-
-// double tach_threshold_near_mid = 0.20;
-// double tach_threshold_mid_fine = 0.05;
-
-double tach_threshold_near_mid = 0.160;
-double tach_threshold_mid_fine = 0.040;
-
-uint near_overshoots = 0;
-uint max_near_overshoots = 3;
-
-// Setup Temperature Sensor
-// Temperature Input is on Pin 2 of the Dallas ds18b20
-#define ONE_WIRE_BUS 8
-OneWire oneWire(ONE_WIRE_BUS);
-DallasTemperature sensors(&oneWire);
-
-double setPoint, sensor0_temp, Output;                                          //I/O for PID
-double innerS, innerS_last;
-double outerS, outerS_last;
 
 // don't output 0.00 for the pwm duty cyle!
 // value pwm minimum value is slightly above zero
@@ -117,12 +97,33 @@ double innerS_max = 1023.00;
 // recude this value to reduce fan overshoot
 // double innerS_max = 900.00;
 
+double tach_threshold_near_mid = 0.20;
+// double tach_threshold_mid_fine = 0.05;
+
+// double tach_threshold_near_mid = 0.160;
+double tach_threshold_mid_fine = 0.040;
+
+uint near_overshoots = 0;
+uint max_near_overshoots = 3;
+
 double innerS_max_change = 0.4;
 double innerS_max_change_abs = innerS_max * innerS_max_change;
 
 
-uint innerS_delay = 1700;
+// Setup Temperature Sensor
 
+// Temperature Input is on Pin 2 of the Dallas ds18b20
+#define ONE_WIRE_BUS 8
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
+
+double setPoint, sensor0_temp, Output;
+double innerS, innerS_last;
+double outerS, outerS_last;
+
+
+
+uint innerS_delay = 1700;
 // uint innerS_delay = 1000;
 
 
@@ -178,33 +179,26 @@ void fan0_tick()   { fan0.tach++; }
 void fan1_tick()   { fan1.tach++; }
 void clear_tachs() { fan0.tach = 0; fan1.tach = 0; }
 
-uint rpm_to_tach(double rpm, uint ms_ellapsed)
-{
-  // double tach_exact = (rpm * 2 * (double)ms_ellapsed) / (60 * 1000);
-  double tach_exact = (rpm * 2 / 60) * ms_ellapsed / 1000;
-
-  // Serial.println("");
-  // Serial.print("rpm = ");
-  // Serial.print(rpm);
-  // Serial.print(", ms_ellapsed = ");
-  // Serial.println(ms_ellapsed);
-  // Serial.print("double tach_exact = ");
-  // Serial.println(tach_exact);
-  // Serial.print("(uint)round(tach_exact) = ");
-  // Serial.println((uint)round(tach_exact));
-  // Serial.println("");
-  // delay(999999);
-  // (uint)round(tach_exact);
-
-   // round to nearest whole integer
-  return (uint)round(tach_exact);
-}
-
 double tach_to_rpm(uint tach, uint ms_ellapsed)
 {
    return ((double)tach * 60 * 1000) / (2 * ms_ellapsed);
 }
 
+uint rpm_to_tach(double rpm, uint ms_ellapsed)
+{
+  // double tach_exact = (rpm * 2 * (double)ms_ellapsed) / (60 * 1000);
+  double tach_exact = (rpm * 2 / 60) * ms_ellapsed / 1000;
+
+  // round to nearest whole integer
+  return (uint)round(tach_exact);
+}
+
+void fan_instance_autofill_tachs(fan &fan_instance)
+{
+  fan_instance.tach_target = rpm_to_tach(fan_instance.rpm_target, innerS_delay);
+  fan_instance.tach_min    = rpm_to_tach(fan_instance.rpm_min,    innerS_delay);
+  fan_instance.tach_max    = rpm_to_tach(fan_instance.rpm_max,    innerS_delay);
+}
 
 unsigned long start, stop;
 int loopCounter;
@@ -249,7 +243,7 @@ void setup()
   double temp0Max = 50;
   double temp0Tgt = setPoint;
 
-  fan0.tach_target = rpm_to_tach(fan0.rpm_target, innerS_delay);
+  fan_instance_autofill_tachs(fan0);
 
 //  double temp1Min = 25;
 //  double temp1Max = 50;
@@ -322,7 +316,6 @@ void outer_loop()
 
   Serial.println("");
 
-  // fan0.rpm_target = fan0_overide;
 }
 
 
@@ -402,9 +395,13 @@ void inner_loop()
   if( abs(innerS - innerS_last) > innerS_max_change_abs )
   {
     if( innerS > innerS_last)
-       innerS = innerS_last + innerS_max_change_abs;
+    {
+      innerS = innerS_last + innerS_max_change_abs;
+    }
     else
+    {
       innerS = innerS_last - innerS_max_change_abs;       
+    }
   }
 
 
