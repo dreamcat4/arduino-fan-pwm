@@ -77,7 +77,26 @@ This is a combined effort, after watching many educational videos explaining PID
 <a id="timers"></a>
 ## timers
 
-* [The Secrets Of Arduino PWM](https://www.arduino.cc/en/pmwiki.php?n=Tutorial/SecretsOfArduinoPWM)
+* [ATMega 328P + 2560](http://sphinx.mythic-beasts.com/~markt/ATmega-timers.html)
+* [ATmega32U4](http://medesign.seas.upenn.edu/index.php/Guides/MaEvArM-timers)
+
+|timer  |bits|channel|328P|2560|32U4|
+|---|---|---|---|---|---|
+|timer0 | 08 | A  | 06 | 13 |
+|timer0 | 08 | B  | 05 | 04 |
+|timer1 | 16 | A  | 09 | 11 |
+|timer1 | 16 | B  | 10 | 12 |
+|timer2 | 08 | A  | 11 | 10 |
+|timer2 | 08 | B  | 03 | 09 |
+|timer3 | 16 | A  | -  | 05 |
+|timer3 | 16 | B  | -  | 02 |
+|timer3 | 16 | C  | -  | 03 |
+|timer4 | 16 | A  | -  | 06 |
+|timer4 | 16 | B  | -  | 07 |
+|timer4 | 16 | C  | -  | 08 |
+|timer5 | 16 | A  | -  | 44 |
+|timer5 | 16 | B  | -  | 45 |
+|timer5 | 16 | C  | -  | 46 |
 
 <a id="atmega328p-uno"></a>
 ### atmega328p (uno)
